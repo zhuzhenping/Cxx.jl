@@ -3,18 +3,18 @@ const libcxx_dependent_class     = 0x434C4E47432B2B01
 const get_vendor_and_language    = 0xFFFFFFFFFFFFFF00
 
 const libstdcxx_class =
-  bswap(reinterpret(UInt64,UInt8['G','N','U','C','C','+','+','\0'])[1])
+  bswap(unsafe_load(Ptr{UInt64}(pointer("GNUCC++\0"))))
 const libstdcxx_depdendent_class =
-  bswap(reinterpret(UInt64,UInt8['G','N','U','C','C','+','+','\x1'])[1])
+  bswap(unsafe_load(Ptr{UInt64}(pointer("GNUCC++\x1"))))
 
-immutable _UnwindException
+struct _UnwindException
     class::UInt64
     cleanup::Ptr{Void}
     private1::UInt
     private2::UInt
 end
 
-immutable LibCxxException
+struct LibCxxException
     referenceCount::Csize_t
     exceptionType::pcpp"std::type_info"
     exceptionDestructor::Ptr{Void}
@@ -32,7 +32,7 @@ end
 
 const LibStdCxxException = LibCxxException
 
-immutable CxxException{kind}
+struct CxxException{kind}
     exception::Ptr{LibCxxException}
 end
 
@@ -40,7 +40,7 @@ function exceptionObject(e::CxxException,T)
     unsafe_load(convert(Ptr{T},(e.exception+sizeof(LibCxxException))))
 end
 
-function exceptionObject{T<:CppRef}(e::CxxException,::Type{T})
+function exceptionObject(e::CxxException,::Type{T}) where T<:CppRef
     T(convert(Ptr{Void},(e.exception+sizeof(LibCxxException))))
 end
 
@@ -61,10 +61,10 @@ function show_cxx_backtrace(io::IO, t, limit=typemax(Int))
 end
 
 import Base: showerror
-function showerror{kind}(io::IO, e::CxxException{kind})
+function showerror(io::IO, e::CxxException{kind}) where kind
     print(io,"Unrecognized C++ Exception ($kind)")
 end
-function showerror{kind}(io::IO, e::CxxException{kind}, bt)
+function showerror(io::IO, e::CxxException{kind}, bt) where kind
     showerror(io, e)
     show_cxx_backtrace(io, bt)
 end

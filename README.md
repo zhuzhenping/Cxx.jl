@@ -1,13 +1,17 @@
-##Cxx.jl
+## Cxx.jl
+
+[![Build Status](https://travis-ci.org/Keno/Cxx.jl.svg?branch=master)](https://travis-ci.org/Keno/Cxx.jl)
+[![codecov.io](http://codecov.io/github/Keno/Cxx.jl/coverage.svg?branch=master)](http://codecov.io/github/Keno/Cxx.jl?branch=master)
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://Keno.github.io/Cxx.jl/latest)
 
 The Julia C++ Foreign Function Interface (FFI) and REPL.
 
-![REPL Screenshot](doc/screenshot.png "C++ REPL Screenshot")
+![REPL Screenshot](docs/screenshot.png "C++ REPL Screenshot")
 
 
 ### Installation
 
-You will need to install Julia v0.5-dev with some special options.
+You will need to install Julia v0.6 (or later).
 
 #### Build requirements
 
@@ -18,7 +22,7 @@ In addition to the [system requirements](https://github.com/JuliaLang/julia#requ
 
 #### Building Cxx
 
-Launch julia (version 0.5 or greater), and in the terminal type
+Launch julia (version 0.6 or later), and in the terminal type
 ```julia
 Pkg.add("Cxx")
 ```

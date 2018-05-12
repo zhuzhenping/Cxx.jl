@@ -138,9 +138,9 @@
 # Function (in some cases we need to return some extra code, but those cases
 # are discussed below)
 #
-__precompile__(false)
+__precompile__(true)
 module Cxx
-pathfile = joinpath(dirname(@__FILE__),"../deps/path.jl")
+pathfile = joinpath(dirname(@__FILE__), "..", "deps", "path.jl")
 isfile(pathfile) || error("path.jl not generated. Try running Pkg.build(\"Cxx\")")
 include(pathfile)
 
@@ -149,6 +149,7 @@ using Core: svec
 
 using Compat
 using Compat.TypeUtils
+using Compat.Sys: isapple, isbsd, islinux, isunix, iswindows
 
 export cast,
        @cxx_str, @cxx_mstr, @icxx_str, @icxx_mstr, @cxxt_str,
@@ -168,11 +169,11 @@ include("utils.jl")
 include("exceptions.jl")
 include("autowrap.jl")
 
-end
-
 # In precompilation mode, we do still need clang, so do it manually
-if ccall(:jl_generating_output, Cint, ()) != 0
-    Cxx.__init__()
+__init__()
+
+include("CxxREPL/replpane.jl")
+
 end
 
 # C++ standard library helpers
@@ -185,7 +186,30 @@ module CxxStd
 
 end
 
-include(joinpath(dirname(@__FILE__),"CxxREPL","replpane.jl"))
-if isdefined(Base, :active_repl)
-   CxxREPL.RunCxxREPL(Cxx.__current_compiler__)
+module CxxREPLInit
+    using Cxx
+    using Cxx.CxxREPL
+    function __init__()
+        if isdefined(Base, :active_repl)
+            CxxREPL.RunCxxREPL(Cxx.__current_compiler__)
+        end
+    end
+end
+
+module CxxExceptionInit
+    using Cxx
+    __init__() = ccall(:jl_generating_output, Cint, ()) == 0 &&
+        eval(:(Cxx.setup_exception_callback()))
+end
+
+module CxxDumpPCH
+    using Cxx
+    # Now that we've loaded Cxx, save everything we just did into a PCH
+    if ccall(:jl_generating_output, Cint, ()) != 0
+        append!(Cxx.GlobalPCHBuffer, Cxx.decouple_pch(Cxx.instance(Cxx.__current_compiler__)))
+    end
+end
+
+if ccall(:jl_generating_output, Cint, ()) != 0
+    Cxx.reset_init!()
 end

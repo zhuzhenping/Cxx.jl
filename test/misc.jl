@@ -1,6 +1,10 @@
 using Cxx
 using Compat
-using Base.Test
+if VERSION <= v"0.7-"
+    using Base.Test
+else
+    using Test
+end
 
 # Issue 37 - Assertion failure when calling function declared `extern "C"`
 cxx"""
@@ -228,7 +232,7 @@ finalize(X)
 @test icxx"testDestructCounter == 10;"
 
 # Template dispatch
-foo{T}(x::cxxt"std::vector<$T>") = icxx"$x.size();"
+foo(x::cxxt"std::vector<$T>") where {T} = icxx"$x.size();"
 @test foo(icxx"std::vector<uint64_t>{0};") == 1
 @test foo(icxx"std::vector<uint64_t>{};") == 0
 
@@ -403,7 +407,7 @@ public:
 @assert icxx"Template246<$(Val{5}())>().getI();" == 5
 
 # #256
-@compat const SVP{T} = cxxt"std::vector<$T>*"
+const SVP{T} = cxxt"std::vector<$T>*"
 # This is a bug!
 # @assert SVP{cxxt"std::string"} == cxxt"std::vector<std::string>*"
 
@@ -431,3 +435,13 @@ template <typename T> struct bar303 {
 
 # Type translation for pointer parameters
 @assert typeof(icxx"std::map<int *, int>{};") <: cxxt"std::map<int *, int>"
+
+# Privilege annotations (override access control)
+cxx"""
+class privfoo {
+    int bar;
+public:
+    privfoo() : bar(1) {}
+};
+"""
+@assert icxx"privfoo{}.bar;"p == 1

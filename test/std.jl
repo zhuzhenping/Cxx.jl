@@ -1,5 +1,10 @@
 using Cxx
-using Base.Test
+import CxxStd
+if VERSION <= v"0.7-"
+    using Base.Test
+else
+    using Test
+end
 
 @testset "StdString" begin
     cxx_str = icxx"""std::string("Hello, World!");"""
@@ -27,10 +32,14 @@ end
         @test eltype(cxx_int_v) == Int32
         @test indices(cxx_int_v) == (0:6,)
         @test linearindices(cxx_int_v) == 0:6
-        @test try (checkbounds(cxx_int_v, -1); false) catch e typeof(e) == BoundsError end
+        let e
+            @test try (checkbounds(cxx_int_v, -1); false) catch e typeof(e) == BoundsError end
+        end
         @test (checkbounds(cxx_int_v, 0); true)
         @test (checkbounds(cxx_int_v, 6); true)
-        @test try (checkbounds(cxx_int_v, 7); false) catch e typeof(e) == BoundsError end
+        let e
+            @test try (checkbounds(cxx_int_v, 7); false) catch e typeof(e) == BoundsError end
+        end
         @test pointer(cxx_int_v) == icxx"$cxx_int_v.data();"
         @test pointer(cxx_int_v, 2) == icxx"$cxx_int_v.data() + 2;"
 
@@ -39,13 +48,33 @@ end
         # @test eltype(cxx_str_v) == cxxt"std::string"
 
         @test eltype(cxx_bool_v) == Bool
+
+        let cxx_float_v = icxx"std::vector<float>{1.1, 2.2, 3.3};"
+            @test endof(cxx_float_v) == 2
+            @test eachindex(cxx_float_v) == 0:2
+
+            push!(cxx_float_v, 4.4)
+            @test collect(cxx_float_v)::Vector{Float32} == Float32[1.1, 2.2, 3.3, 4.4]
+
+            resize!(cxx_float_v, 3)
+            @test collect(cxx_float_v)::Vector{Float32} == Float32[1.1, 2.2, 3.3]
+
+            filter!(i -> i < 3, cxx_float_v)
+            @test collect(cxx_float_v)::Vector{Float32} == Float32[1.1, 2.2]
+
+            # FIXME: Currently throws a MethodError
+            # deleteat!(cxx_float_v, 1)
+            # @test collect(cxx_float_v)::Vector{Float32} == Float32[1.1]
+        end
     end
 
 
     @testset "StdVector iteration" begin
         @test begin
             s = zero(cxx_int_v[0])
-            for x in cxx_int_v s += x end
+            let x
+                for x in cxx_int_v s += x end
+            end
             s == sum(jl_int_v)
         end
     end
@@ -206,5 +235,24 @@ end
         end
 
         @test convert(Vector{Bool}, cxx_bool_v) == jl_bool_v
+
+        let x = [true, false, true]
+            let y = convert(cxxt"std::vector<$Int>", x)
+                @test collect(y) == Int[1, 0, 1]
+            end
+        end
+    end
+end
+
+@testset "Exceptions" begin
+    @testset "std::length_error&" begin
+        v = icxx"std::vector<$Int>{1, 2, 3};"
+        try
+            icxx"$v.resize($v.max_size() + 1);"
+            error("unexpected")
+        catch err
+            @test err isa Cxx.CxxException{:St12length_error}
+            @test startswith(sprint(showerror, err), "vector")
+        end
     end
 end
